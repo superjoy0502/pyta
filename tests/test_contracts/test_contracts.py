@@ -4,7 +4,7 @@ from typing import Dict, List, Set
 import pytest
 
 import python_ta.contracts
-from python_ta.contracts import check_contracts
+from python_ta.contracts import check_contracts, use_ai_conversion
 
 
 def test_nullary_return_int() -> None:
@@ -237,6 +237,17 @@ def test_parameter_int_bool_disable_contract_checking(disable_contract_checking)
         return None
 
     parameter_int(True)
+
+
+@use_ai_conversion
+@check_contracts
+def _my_sum_one_precondition_ai(numbers: List[int]) -> int:
+    """Return the sum of a list of numbers.
+    This method is implemented for the test purposes of testing verbal preconditions.
+
+    Precondition: length of list 'numbers' has to be greater than 2
+    """
+    return sum(numbers)
 
 
 @check_contracts

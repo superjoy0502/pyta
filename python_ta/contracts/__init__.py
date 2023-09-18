@@ -15,6 +15,7 @@ import typing
 from types import CodeType, FunctionType, ModuleType
 from typing import Any, Callable, List, Optional, Set, Tuple
 
+import openai
 import wrapt
 from typeguard import CollectionCheckStrategy, TypeCheckError, check_type
 
@@ -41,6 +42,14 @@ _PYDEV_UMD_NAME = "pydev_umd"
 
 _DEFAULT_MAX_VALUE_LENGTH = 30
 FUNCTION_RETURN_VALUE = "$return_value"
+
+ENABLE_AI_CONVERSION = False
+"""
+Set to True to enable the use of verbal expressions in the contract preconditions.
+
+When set to False, preconditions that are not valid python expressions will be ignored,
+just like as if ENABLE_CONTRACT_CHECKING is set to False.
+"""
 
 
 class PyTAContractError(Exception):
@@ -241,7 +250,21 @@ def _check_function_contracts(wrapped, instance, args, kwargs):
                 _debug(
                     f"Warning: precondition {precondition} could not be parsed as a valid Python expression"
                 )
-                continue
+                if ENABLE_AI_CONVERSION:
+                    try:
+                        _debug(
+                            f"Trying to generate python code that corresponds to {precondition}..."
+                        )
+                        generated = generate_python_from(precondition)
+                        _debug("Generated code: " + generated)
+                        compiled = compile(generated, "<string>", "eval")
+                    except:
+                        _debug(
+                            f"Warning: precondition {precondition} could not be converted to a valid Python expression"
+                        )
+                        continue
+                else:
+                    continue
             target.__preconditions__.append((precondition, compiled))
 
     if ENABLE_CONTRACT_CHECKING:
@@ -287,6 +310,81 @@ def _check_function_contracts(wrapped, instance, args, kwargs):
         )
 
     return r
+
+
+def use_ai_conversion(func: Any):
+    """A decorator to enable the use of AI to convert verbal expressions to python code
+
+    Internet connection is necessary to use this decorator
+    This feature will not work if internet connection is not available
+
+    This decorator is meant to be used with check_contracts decorator,
+    and it must be placed before check_contracts decorator when used;
+    Otherwise, the decorator will not work
+
+    Example:
+        >>> from python_ta.contracts import check_contracts, use_ai_conversion
+        >>> @use_ai_conversion # This decorator coming first is NECESSARY
+        ... @check_contracts
+        ... def my_func(x: Any) -> Any:
+        ...     \"\"\"<Description>
+        ...
+        ...     Preconditions:
+        ...        - <Verbal Precondition>
+        ...     \"\"\"
+        ...
+        ...     return <Return Value>
+
+    In order to use this decorator, the user must acquire a valid OpenAI API key
+    After acquiring the key, the user must set the OPENAI_API_KEY environment variable to the key
+
+    For more details, please refer to https://platform.openai.com/account/api-keys
+
+    If OPENAI_API_KEY is not set, an error will be raised
+    """
+    if openai.api_key is None:
+        raise openai.error.AuthenticationError(
+            "No API key found. Set the environment variable OPENAI_API_KEY to "
+            "a valid OpenAI API key. Please refer to https://platform.openai.com/account/api-keys"
+            "for more details"
+        )
+
+    def wrapper(*args, **kwargs):
+        """A wrapper to enable the use of AI to convert verbal expressions to python code"""
+        global ENABLE_AI_CONVERSION
+        ENABLE_AI_CONVERSION = True
+        return func(*args, **kwargs)
+
+    ENABLE_AI_CONVERSION = False
+    return wrapper
+
+
+def generate_python_from(description: str) -> str:
+    """A function that generates python code from the given description using OpenAI API
+    and returns the code as a string"""
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {
+                "role": "system",
+                "content": "Generate raw python code from the following precondition description\n"
+                "Response must be ONLY containing python code.\n"
+                "(Which means no description or explanation is allowed)",
+            },
+            {
+                "role": "system",
+                "content": "Example) Description: strings should not be an empty list\n"
+                "Response: strings != []",
+            },
+            {
+                "role": "system",
+                "content": "Example) Description: n must be positive\n" "Response: n > 0",
+            },
+            {"role": "user", "content": f"Description: {description}"},
+        ],
+        temperature=0.0,
+    )
+    return response["choices"][0]["message"]["content"][10:]
 
 
 def check_type_strict(argname: str, value: Any, expected_type: type) -> None:
