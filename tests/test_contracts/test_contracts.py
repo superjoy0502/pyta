@@ -239,6 +239,15 @@ def test_parameter_int_bool_disable_contract_checking(disable_contract_checking)
     parameter_int(True)
 
 
+@check_contracts
+def _my_sum_one_precondition(numbers: List[int]) -> int:
+    """Return the sum of a list of numbers.
+
+    Precondition: len(numbers) > 2
+    """
+    return sum(numbers)
+
+
 @use_ai_conversion
 @check_contracts
 def _my_sum_one_precondition_ai(numbers: List[int]) -> int:
@@ -246,15 +255,6 @@ def _my_sum_one_precondition_ai(numbers: List[int]) -> int:
     This method is implemented for the test purposes of testing verbal preconditions.
 
     Precondition: length of list 'numbers' has to be greater than 2
-    """
-    return sum(numbers)
-
-
-@check_contracts
-def _my_sum_one_precondition(numbers: List[int]) -> int:
-    """Return the sum of a list of numbers.
-
-    Precondition: len(numbers) > 2
     """
     return sum(numbers)
 

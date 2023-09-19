@@ -313,16 +313,26 @@ def _check_function_contracts(wrapped, instance, args, kwargs):
 
 
 def use_ai_conversion(func: Any):
-    """A decorator to enable the use of AI to convert verbal expressions to python code
+    """A decorator to enable the use of AI to convert verbal expressions to python code.
 
-    Internet connection is necessary to use this decorator
-    This feature will not work if internet connection is not available
+    In order to use this decorator, the user must acquire a valid OpenAI API key.
+    After acquiring the key, the user must set the OPENAI_API_KEY environment variable to the key.
 
-    This decorator is meant to be used with check_contracts decorator,
-    and it must be placed before check_contracts decorator when used;
-    Otherwise, the decorator will not work
+    This decorator is meant to be used with the @check_contracts decorator.
+    It must be placed before the @check_contracts decorator when used;
+    otherwise, the decorator will not work as expected.
+
+    Internet connection is necessary to use this decorator.
+    If an internet connection is unavailable, the target function will operate
+    as if this decorator is not present, ignoring verbal preconditions.
+
+    If OPENAI_API_KEY is not set, an error will be raised.
+
+    For more details on setting up your OpenAI API key, please refer to:
+    https://platform.openai.com/account/api-keys
 
     Example:
+
         >>> from python_ta.contracts import check_contracts, use_ai_conversion
         >>> @use_ai_conversion # This decorator coming first is NECESSARY
         ... @check_contracts
@@ -334,13 +344,6 @@ def use_ai_conversion(func: Any):
         ...     \"\"\"
         ...
         ...     return <Return Value>
-
-    In order to use this decorator, the user must acquire a valid OpenAI API key
-    After acquiring the key, the user must set the OPENAI_API_KEY environment variable to the key
-
-    For more details, please refer to https://platform.openai.com/account/api-keys
-
-    If OPENAI_API_KEY is not set, an error will be raised
     """
     if openai.api_key is None:
         raise openai.error.AuthenticationError(
